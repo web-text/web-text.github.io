@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sign Up</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVnljaBJSqS-xTdI0w-jRNc2Ro5PySeOM",
+      authDomain: "webbtext.firebaseapp.com",
+      projectId: "webbtext",
+      storageBucket: "webbtext.firebasestorage.app",
+      messagingSenderId: "1089670740646",
+      appId: "1:1089670740646:web:d79f4fa6944e41b49d1267",
+      measurementId: "G-EF0V6ZMB0Y"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+
+    window.signUp = async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const username = document.getElementById("username").value;
+      const message = document.getElementById("message");
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: username });
+        message.innerText = `✅ Account created! Redirecting...`;
+        setTimeout(() => window.location.href = "login.html", 1500);
+      } catch (error) {
+        message.innerText = `❌ ${error.message}`;
+      }
+    };
+  </script>
+</head>
+<body>
+  <h2>Sign Up</h2>
+  <input type="text" id="username" placeholder="Username"><br>
+  <input type="email" id="email" placeholder="Email"><br>
+  <input type="password" id="password" placeholder="Password"><br>
+  <button onclick="signUp()">Sign Up</button>
+  <button onclick="location.href = './login.html'">Already have an account?</button>
+  <p id="message"></p>
+</body>
+</html>
