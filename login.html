@@ -29,7 +29,7 @@
         const username = userCredential.user.displayName || "(no username)";
         message.innerText = `✅ Welcome back, ${username}!`;
         // You can redirect to a dashboard page if you want:
-         setTimeout(() => window.location.href = "dashboard.html", 1500);
+         setTimeout(() => window.location.href = "index.html", 1500);
       } catch (error) {
         message.innerText = `❌ ${error.message}`;
       }
