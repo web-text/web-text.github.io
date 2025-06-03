@@ -5,20 +5,12 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDVnljaBJSqS-xTdI0w-jRNc2Ro5PySeOM",
-      authDomain: "webbtext.firebaseapp.com",
-      projectId: "webbtext",
-      storageBucket: "webbtext.firebasestorage.app",
-      messagingSenderId: "1089670740646",
-      appId: "1:1089670740646:web:d79f4fa6944e41b49d1267",
-      measurementId: "G-EF0V6ZMB0Y"
-    };
+    import { firebaseConfig } from "./firebaseConfig.js";
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
+    // 🔧 Make it global
     window.logIn = async () => {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
@@ -28,8 +20,7 @@
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const username = userCredential.user.displayName || "(no username)";
         message.innerText = `✅ Welcome back, ${username}!`;
-        // You can redirect to a dashboard page if you want:
-         setTimeout(() => window.location.href = "index.html", 1500);
+        setTimeout(() => window.location.href = "index.html", 1500);
       } catch (error) {
         message.innerText = `❌ ${error.message}`;
       }

@@ -1,41 +1,144 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Dashboard</title>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDVnljaBJSqS-xTdI0w-jRNc2Ro5PySeOM",
-      authDomain: "webbtext.firebaseapp.com",
-      projectId: "webbtext",
-      storageBucket: "webbtext.firebasestorage.app",
-      messagingSenderId: "1089670740646",
-      appId: "1:1089670740646:web:d79f4fa6944e41b49d1267",
-      measurementId: "G-EF0V6ZMB0Y"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        document.getElementById("username").innerText = user.displayName || "Unnamed Hero";
-      } else {
-        window.location.href = "login.html"; // Not signed in? Begone.
-      }
-    });
-
-    window.logOut = async () => {
-      await signOut(auth);
-      window.location.href = "login.html";
-    };
-  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard - Chat</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 20px auto; }
+    #searchResults button { margin: 5px 0; }
+    #chatWindow { border: 1px solid #ccc; padding: 10px; margin-top: 20px; }
+    #messages { height: 250px; overflow-y: auto; border-bottom: 1px solid #aaa; margin-bottom: 10px; }
+    #messageInput { width: 80%; padding: 5px; }
+    #sendBtn { padding: 5px 10px; }
+  </style>
 </head>
 <body>
-  <h2>Welcome, <span id="username">...</span>!</h2>
-  <p>This is your secret dashboard.</p>
-  <button onclick="logOut()">Log Out</button>
+
+<h2>Welcome, <span id="displayName"></span>!</h2>
+
+<div>
+  <input type="text" id="searchUsername" placeholder="Search user by username" />
+  <button onclick="searchUser()">Search</button>
+</div>
+<div id="searchResults"></div>
+
+<div id="chatWindow" style="display:none;">
+  <div id="messages"></div>
+  <input type="text" id="messageInput" placeholder="Type your message..." />
+  <button id="sendBtn" onclick="sendMessage()">Send</button>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+  import {
+    getFirestore, collection, query, where, getDocs, orderBy,
+    onSnapshot, addDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+  import { firebaseConfig } from "./firebaseConfig.js"; // 🔒 secret sauce
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUser = null;
+  let currentChatId = null;
+  let currentChatUsername = null;
+
+  function getConversationId(uid1, uid2) {
+    return uid1 < uid2 ? uid1 + "_" + uid2 : uid2 + "_" + uid1;
+  }
+
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      currentUser = user;
+      loadUserName();
+    } else {
+      window.location.href = "login.html";
+    }
+  });
+
+  async function loadUserName() {
+    const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", currentUser.uid)));
+    if (!userDoc.empty) {
+      document.getElementById("displayName").innerText = userDoc.docs[0].data().username;
+    } else {
+      document.getElementById("displayName").innerText = currentUser.email;
+    }
+  }
+
+  async function searchUser() {
+    const username = document.getElementById("searchUsername").value.trim();
+    const resultsDiv = document.getElementById("searchResults");
+    resultsDiv.innerHTML = "";
+
+    if (!username) return;
+
+    const q = query(collection(db, "users"), where("username", "==", username));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      resultsDiv.innerText = "User not found";
+      return;
+    }
+
+    querySnapshot.forEach(docSnap => {
+      const userData = docSnap.data();
+      const userId = docSnap.id;
+      if (userId === currentUser.uid) return;
+
+      const btn = document.createElement("button");
+      btn.innerText = `Chat with ${userData.username}`;
+      btn.onclick = () => openChat(userId, userData.username);
+      resultsDiv.appendChild(btn);
+    });
+  }
+
+  function openChat(targetUid, targetUsername) {
+    currentChatId = getConversationId(currentUser.uid, targetUid);
+    currentChatUsername = targetUsername;
+
+    const messagesDiv = document.getElementById("messages");
+    document.getElementById("chatWindow").style.display = "block";
+    messagesDiv.innerHTML = `<b>Chatting with ${targetUsername}</b><br>`;
+
+    const messagesRef = collection(db, "messages", currentChatId, "messages");
+    const q = query(messagesRef, orderBy("timestamp"));
+
+    onSnapshot(q, (snapshot) => {
+      messagesDiv.innerHTML = `<b>Chatting with ${targetUsername}</b><br>`;
+      snapshot.forEach(doc => {
+        const msg = doc.data();
+        const sender = msg.from === currentUser.uid ? "You" : targetUsername;
+        messagesDiv.innerHTML += `<p><b>${sender}:</b> ${msg.text}</p>`;
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+  }
+
+  async function sendMessage() {
+    if (!currentChatId) {
+      alert("Open a chat first!");
+      return;
+    }
+
+    const input = document.getElementById("messageInput");
+    const text = input.value.trim();
+    if (!text) return;
+
+    await addDoc(collection(db, "messages", currentChatId, "messages"), {
+      from: currentUser.uid,
+      text,
+      timestamp: serverTimestamp()
+    });
+
+    input.value = "";
+  }
+
+  window.searchUser = searchUser;
+  window.sendMessage = sendMessage;
+</script>
+
 </body>
 </html>
